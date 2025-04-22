@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"sync"
 
 	"github.com/gorilla/websocket"
 )
@@ -19,7 +20,10 @@ var upgrader = websocket.Upgrader{
 }
 
 // クライアントの接続を管理するマップ
-var clients = make(map[*websocket.Conn]bool)
+var (
+	clients     = make(map[*websocket.Conn]bool)
+	clientMutex sync.Mutex
+)
 
 // メッセージを送信するチャネル
 var broadcast = make(chan Message)
@@ -43,7 +47,9 @@ func handleConnection(w http.ResponseWriter, r *http.Request) {
 	defer ws.Close()
 
 	// クライアントを追加
+	clientMutex.Lock()
 	clients[ws] = true
+	clientMutex.Unlock()
 
 	// クライアントからのメッセージを受信
 	for {
@@ -53,7 +59,9 @@ func handleConnection(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Printf("エラーが発生しました: %v", err)
 			// エラーが発生した場合はクライアントを削除
+			clientMutex.Lock()
 			delete(clients, ws)
+			clientMutex.Unlock()
 			break
 		}
 		// メッセージをブロードキャストに送信
@@ -65,15 +73,22 @@ func handleMessages() {
 	for {
 		// ブロードキャストチャネルからメッセージを受信
 		msg := <-broadcast
+		deleteClients := []*websocket.Conn{}
 		for client := range clients {
 			err := client.WriteJSON(msg)
 			if err != nil {
 				log.Printf("メッセージの送信に失敗しました: %v", err)
 				client.Close()
 				// エラーが発生した場合はクライアントを削除
-				delete(clients, client)
+				deleteClients = append(deleteClients, client)
 			}
 		}
+		clientMutex.Lock()
+		for _, client := range deleteClients {
+			delete(clients, client)
+		}
+		clientMutex.Unlock()
+		deleteClients = nil
 	}
 }
 
