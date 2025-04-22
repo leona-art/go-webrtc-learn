@@ -12,10 +12,8 @@ var upgrader = websocket.Upgrader{
 	// 接続を許可するオリジンを指定
 	// localhost:3000からの接続を許可
 	CheckOrigin: func(r *http.Request) bool {
-		if r.Header.Get("Origin") == "http://localhost:3000" {
-			return true
-		}
-		return false
+
+		return true
 	},
 }
 
@@ -37,6 +35,7 @@ type Message struct {
 }
 
 func handleConnection(w http.ResponseWriter, r *http.Request) {
+	log.Println("新しい接続を受け付けています...")
 	// WebSocket接続をアップグレード
 	ws, err := upgrader.Upgrade(w, r, nil)
 
@@ -50,6 +49,7 @@ func handleConnection(w http.ResponseWriter, r *http.Request) {
 	clientMutex.Lock()
 	clients[ws] = true
 	clientMutex.Unlock()
+	log.Println("新しいクライアントが接続しました")
 
 	// クライアントからのメッセージを受信
 	for {
@@ -99,10 +99,11 @@ func main() {
 	// WebSocket接続を受け付けるハンドラを設定
 	http.HandleFunc("/ws", handleConnection)
 
+	ipAddr := "0.0.0.0"
 	port := ":8080"
 	// サーバーを起動
-	log.Printf("サーバーをポート%sで起動します...", port)
-	err := http.ListenAndServe(port, nil)
+	log.Printf("サーバーを%sで起動します...", ipAddr+port)
+	err := http.ListenAndServe(ipAddr+port, nil)
 	if err != nil {
 		log.Fatal("サーバーの起動に失敗しました:", err)
 	}
