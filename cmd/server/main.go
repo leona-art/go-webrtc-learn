@@ -37,7 +37,8 @@ func handleConnection(w http.ResponseWriter, r *http.Request) {
 	ws, err := upgrader.Upgrade(w, r, nil)
 
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("接続のアップグレードに失敗しました: %v", err)
+		return
 	}
 	defer ws.Close()
 
