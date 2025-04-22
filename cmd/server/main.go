@@ -26,8 +26,10 @@ var broadcast = make(chan Message)
 
 // クライアント間で交換するメッセージの構造体
 type Message struct {
-	Sender  string `json:"sender"`
-	Content string `json:"content"`
+	Type      string      `json:"type"`                // "offer", "answer", "candidate", "chat", etc.
+	Payload   interface{} `json:"payload"`             // SDPまたはICE Candidateのデータなど
+	Sender    string      `json:"sender,omitempty"`    // 送信者ID (あれば)
+	Recipient string      `json:"recipient,omitempty"` // 受信者ID (あれば)
 }
 
 func handleConnection(w http.ResponseWriter, r *http.Request) {
