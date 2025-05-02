@@ -64,6 +64,7 @@ func handleConnection(w http.ResponseWriter, r *http.Request) {
 			clientMutex.Unlock()
 			break
 		}
+		msg.Sender = ws.RemoteAddr().String() // 送信者のアドレスを設定
 		// メッセージをブロードキャストに送信
 		broadcast <- msg
 	}
@@ -75,12 +76,19 @@ func handleMessages() {
 		msg := <-broadcast
 		deleteClients := []*websocket.Conn{}
 		for client := range clients {
+			if msg.Sender == client.RemoteAddr().String() {
+				// 自分に送信するメッセージはスキップ
+				continue
+			}
 			err := client.WriteJSON(msg)
 			if err != nil {
 				log.Printf("メッセージの送信に失敗しました: %v", err)
 				client.Close()
 				// エラーが発生した場合はクライアントを削除
 				deleteClients = append(deleteClients, client)
+			} else {
+				log.Printf("メッセージをクライアントに送信しました: %v", msg)
+				log.Printf("クライアントのID: %v", client.RemoteAddr())
 			}
 		}
 		clientMutex.Lock()
